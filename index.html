@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda de Cumpleaños</title>
+<style>
+  :root {
+    --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--accent:#7c6af7;
+    --green:#4ade80;--red:#f87171;--yellow:#fbbf24;--text:#e8eaf6;
+    --muted:#8b92b8;--border:#2e3354;--radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh;}
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;gap:14px;}
+  header h1{font-size:1.4rem;font-weight:700;}
+  .sync-indicator{margin-left:auto;font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px;}
+  .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);}
+  .sync-dot.loading{background:var(--yellow);animation:pulse 1s infinite;}
+  .sync-dot.error{background:var(--red);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  nav{display:flex;gap:6px;padding:20px 32px 0;flex-wrap:wrap;}
+  .tab{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:9px 20px;border-radius:8px;cursor:pointer;font-size:.9rem;transition:all .2s;}
+  .tab:hover{color:var(--text);border-color:var(--accent);}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .page{display:none;padding:28px 32px;max-width:1100px;}
+  .page.active{display:block;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;}
+  .card h2{font-size:1.1rem;margin-bottom:20px;}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;}
+  label{display:flex;flex-direction:column;gap:6px;font-size:.85rem;color:var(--muted);}
+  input[type=date],input[type=text],input[type=number],select,textarea{
+    background:var(--surface2);border:1px solid var(--border);color:var(--text);
+    padding:10px 12px;border-radius:8px;font-size:.95rem;outline:none;transition:border .2s;font-family:inherit;
+  }
+  textarea{resize:vertical;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+  .avail-box{margin-top:16px;padding:12px 16px;border-radius:8px;font-size:.9rem;display:none;}
+  .avail-box.free{background:#14302a;border:1px solid var(--green);color:var(--green);display:block;}
+  .avail-box.taken{background:#301420;border:1px solid var(--red);color:var(--red);display:block;}
+  .avail-box.checking{background:#1a1d27;border:1px solid var(--yellow);color:var(--yellow);display:block;}
+  .btn{padding:11px 28px;border-radius:8px;border:none;cursor:pointer;font-size:.95rem;font-weight:600;transition:opacity .2s;}
+  .btn:hover{opacity:.85;} .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-danger{background:var(--red);color:#fff;padding:6px 14px;font-size:.8rem;}
+  .btn-check{background:var(--surface2);border:1px solid var(--border);color:var(--text);}
+  .form-actions{display:flex;gap:12px;margin-top:20px;align-items:center;flex-wrap:wrap;}
+  .filter-row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;}
+  th{background:var(--surface2);color:var(--muted);padding:10px 14px;text-align:left;font-weight:600;border-bottom:1px solid var(--border);}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  tr:hover td{background:var(--surface2);}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.78rem;font-weight:600;}
+  .badge-am{background:#1a3a5c;color:#60c3f7;} .badge-pm{background:#3a1a4a;color:#c084fc;}
+  .empty{text-align:center;color:var(--muted);padding:40px;}
+  .month-nav,.year-nav{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+  .month-nav button,.year-nav button{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:1rem;}
+  .month-nav h3,.year-nav h3{font-size:1.2rem;flex:1;text-align:center;text-transform:capitalize;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-header{text-align:center;font-size:.8rem;color:var(--muted);padding:6px;font-weight:600;}
+  .cal-day{background:var(--surface);border:1px solid var(--border);border-radius:8px;min-height:80px;padding:6px;}
+  .cal-day.other-month{opacity:.35;} .cal-day.today{border-color:var(--accent);}
+  .day-num{font-size:.8rem;color:var(--muted);margin-bottom:4px;}
+  .cal-event{font-size:.72rem;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cal-event.am{background:#1a3a5c;color:#60c3f7;} .cal-event.pm{background:#3a1a4a;color:#c084fc;}
+  .annual-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+  .month-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+  .month-card h3{font-size:1rem;margin-bottom:12px;color:var(--accent);text-transform:capitalize;border-bottom:1px solid var(--border);padding-bottom:8px;}
+  .month-event{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:.85rem;}
+  .month-event:last-child{border:none;}
+  .month-event .date-part{color:var(--muted);font-size:.8rem;}
+  .no-events{color:var(--muted);font-size:.82rem;text-align:center;padding:10px 0;}
+  .stat-row{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 24px;flex:1;min-width:140px;}
+  .stat .val{font-size:2rem;font-weight:700;color:var(--accent);}
+  .stat .lbl{font-size:.8rem;color:var(--muted);margin-top:4px;}
+  .toast{position:fixed;bottom:30px;right:30px;background:var(--green);color:#0a1f14;padding:12px 22px;border-radius:8px;font-weight:600;font-size:.9rem;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
+  .toast.show{opacity:1;} .toast.error{background:var(--red);color:#fff;}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.8rem">🎂</span>
+  <h1>Agenda de Cumpleaños</h1>
+  <div class="sync-indicator">
+    <div class="sync-dot loading" id="sync-dot"></div>
+    <span id="sync-label">Conectando…</span>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" onclick="showTab('registro',this)">➕ Registrar</button>
+  <button class="tab" onclick="showTab('reservas',this)">📋 Reservas</button>
+  <button class="tab" onclick="showTab('mensual',this)">📅 Vista Mensual</button>
+  <button class="tab" onclick="showTab('anual',this)">📆 Vista Anual</button>
+</nav>
+
+<!-- REGISTRO -->
+<div id="page-registro" class="page active">
+  <div class="card">
+    <h2>Nueva Reserva</h2>
+    <div class="form-grid">
+      <label>Fecha<input type="date" id="f-fecha" oninput="checkAvail()"></label>
+      <label>Horario
+        <select id="f-horario" onchange="checkAvail()">
+          <option value="">-- Seleccionar --</option>
+          <option value="AM">AM (mañana)</option>
+          <option value="PM">PM (tarde)</option>
+        </select>
+      </label>
+      <label>Nombre del Contacto<input type="text" id="f-contacto" placeholder="Ej: María González"></label>
+      <label>Edad del Cumpleañero<input type="number" id="f-edad" min="1" max="120" placeholder="Ej: 30"></label>
+    </div>
+    <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <label>Notas / Observaciones
+        <textarea id="f-notas" rows="3" placeholder="Ej: Abono $50.000 pagado, catering vegetariano..."></textarea>
+      </label>
+      <div style="display:flex;flex-direction:column;gap:14px;justify-content:center;">
+        <label style="flex-direction:row;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="f-abono" style="width:18px;height:18px;accent-color:var(--accent);">
+          <span style="color:var(--text);font-size:.9rem;">💰 Abono recibido</span>
+        </label>
+        <label style="flex-direction:row;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="f-catering" style="width:18px;height:18px;accent-color:var(--accent);">
+          <span style="color:var(--text);font-size:.9rem;">🍽️ Solicita Catering</span>
+        </label>
+      </div>
+    </div>
+    <div id="avail-msg" class="avail-box"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="btn-registrar" onclick="registrar()">💾 Registrar Reserva</button>
+      <button class="btn btn-check" onclick="checkAvail()">🔍 Verificar Disponibilidad</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESERVAS -->
+<div id="page-reservas" class="page">
+  <div class="stat-row">
+    <div class="stat"><div class="val" id="s-total">—</div><div class="lbl">Total</div></div>
+    <div class="stat"><div class="val" id="s-am">—</div><div class="lbl">AM</div></div>
+    <div class="stat"><div class="val" id="s-pm">—</div><div class="lbl">PM</div></div>
+    <div class="stat"><div class="val" id="s-mes">—</div><div class="lbl">Este Mes</div></div>
+    <div class="stat"><div class="val" id="s-abono">—</div><div class="lbl">💰 Abono</div></div>
+    <div class="stat"><div class="val" id="s-catering">—</div><div class="lbl">🍽️ Catering</div></div>
+  </div>
+  <div class="card">
+    <h2>Listado de Reservas</h2>
+    <div class="filter-row">
+      <label style="flex-direction:row;align-items:center;gap:8px;">
+        <span style="color:var(--muted);font-size:.85rem;">Mes:</span>
+        <select id="fil-mes" onchange="renderReservas()">
+          <option value="">Todos</option>
+          <option value="01">Enero</option><option value="02">Febrero</option>
+          <option value="03">Marzo</option><option value="04">Abril</option>
+          <option value="05">Mayo</option><option value="06">Junio</option>
+          <option value="07">Julio</option><option value="08">Agosto</option>
+          <option value="09">Septiembre</option><option value="10">Octubre</option>
+          <option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </label>
+      <label style="flex-direction:row;align-items:center;gap:8px;">
+        <span style="color:var(--muted);font-size:.85rem;">Horario:</span>
+        <select id="fil-horario" onchange="renderReservas()">
+          <option value="">Todos</option>
+          <option value="AM">AM</option><option value="PM">PM</option>
+        </select>
+      </label>
+      <label style="flex-direction:row;align-items:center;gap:8px;">
+        <span style="color:var(--muted);font-size:.85rem;">Buscar:</span>
+        <input type="text" id="fil-buscar" placeholder="Nombre..." oninput="renderReservas()" style="min-width:160px;">
+      </label>
+      <button class="btn btn-check" style="padding:8px 16px;font-size:.85rem;" onclick="loadData()">🔄 Sincronizar</button>
+    </div>
+    <div id="tabla-container"><div class="empty"><span class="spinner"></span> Cargando…</div></div>
+  </div>
+</div>
+
+<!-- MENSUAL -->
+<div id="page-mensual" class="page">
+  <div class="card">
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">&#8592;</button>
+      <h3 id="month-title"></h3>
+      <button onclick="changeMonth(1)">&#8594;</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</div>
+
+<!-- ANUAL -->
+<div id="page-anual" class="page">
+  <div class="card">
+    <div class="year-nav">
+      <button onclick="changeYear(-1)">&#8592;</button>
+      <h3 id="year-title"></h3>
+      <button onclick="changeYear(1)">&#8594;</button>
+    </div>
+    <div class="annual-grid" id="annual-grid"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbx_qBJVL-n8IkucW19U9PYaqwisaFzFrgVonCVRc3zGGSWh9lcmRRIdcgkb5GEFuUAR/exec';
+
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DAYS   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+let reservas   = [];
+let viewMonth  = new Date().getMonth();
+let viewYear   = new Date().getFullYear();
+let annualYear = new Date().getFullYear();
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function apiGet(params) {
+  const qs = new URLSearchParams(params).toString();
+  const r  = await fetch(`${API}?${qs}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+async function loadData() {
+  setSyncState('loading', 'Sincronizando…');
+  try {
+    const data = await apiGet({ action: 'list' });
+    reservas = Array.isArray(data) ? data.map(norm) : [];
+    reservas.sort((a,b) => String(a.fecha).localeCompare(String(b.fecha)));
+    setSyncState('ok', 'Sincronizado');
+    updateStats(); renderReservas(); renderCalendar(); renderAnnual();
+  } catch(e) {
+    setSyncState('error', 'Error de conexión');
+    showToast('No se pudo conectar con Google Sheets', true);
+  }
+}
+
+function norm(x) {
+  return {
+    ...x,
+    abono:    x.abono === true || x.abono === 'TRUE' || x.abono === 'true',
+    catering: x.catering === true || x.catering === 'TRUE' || x.catering === 'true',
+    edad:     parseInt(x.edad) || 0
+  };
+}
+
+// ── DISPONIBILIDAD (consulta directa al Sheets) ───────────────────────────────
+async function checkAvail() {
+  const fecha   = document.getElementById('f-fecha').value;
+  const horario = document.getElementById('f-horario').value;
+  const box     = document.getElementById('avail-msg');
+  if (!fecha || !horario) { box.className = 'avail-box'; return; }
+  box.className = 'avail-box checking';
+  box.innerHTML = '<span class="spinner"></span> Verificando en Sheets…';
+  try {
+    const res = await apiGet({ action: 'check', fecha, horario });
+    console.log('check response:', JSON.stringify(res));
+    if (res && res.available === true) {
+      box.className = 'avail-box free';
+      box.innerHTML = `✅ <strong>${horario}</strong> del <strong>${fmtDate(fecha)}</strong> está disponible.`;
+    } else if (res && res.available === false) {
+      box.className = 'avail-box taken';
+      box.innerHTML = `🚫 <strong>${horario}</strong> del <strong>${fmtDate(fecha)}</strong> ya está reservado.`;
+    } else {
+      box.className = 'avail-box checking';
+      box.innerHTML = '⚠️ Respuesta inesperada: ' + JSON.stringify(res);
+    }
+  } catch(e) {
+    console.error('checkAvail error:', e);
+    box.className = 'avail-box checking';
+    box.innerHTML = '⚠️ Error de conexión — intenta de nuevo.';
+  }
+}
+
+// ── REGISTRAR ────────────────────────────────────────────────────────────────
+async function registrar() {
+  const fecha    = document.getElementById('f-fecha').value;
+  const horario  = document.getElementById('f-horario').value;
+  const contacto = document.getElementById('f-contacto').value.trim();
+  const edad     = document.getElementById('f-edad').value;
+  const notas    = document.getElementById('f-notas').value.trim();
+  const abono    = document.getElementById('f-abono').checked;
+  const catering = document.getElementById('f-catering').checked;
+
+  if (!fecha || !horario || !contacto || !edad) {
+    showToast('Completa todos los campos obligatorios', true); return;
+  }
+
+  const btn = document.getElementById('btn-registrar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verificando…';
+
+  // Verificación server-side obligatoria antes de escribir
+  try {
+    const chk = await apiGet({ action: 'check', fecha, horario });
+    if (!chk.available) {
+      showToast('🚫 Ese horario ya está reservado', true);
+      const box = document.getElementById('avail-msg');
+      box.className = 'avail-box taken';
+      box.innerHTML = `🚫 <strong>${horario}</strong> del <strong>${fmtDate(fecha)}</strong> ya está reservado.`;
+      await loadData();
+      return;
+    }
+  } catch(e) {
+    showToast('⚠️ No se pudo verificar disponibilidad', true);
+    return;
+  } finally {
+    // Solo restaurar si vamos a continuar al paso de guardado
+    // (si hubo error o estaba tomado, el finally igual restaura)
+    btn.disabled = false;
+    btn.innerHTML = '💾 Registrar Reserva';
+  }
+
+  // Segunda fase: guardar
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Guardando…';
+
+  const rec = { id: Date.now(), fecha, horario, contacto, edad: parseInt(edad), abono, catering, notas };
+  try {
+    const res = await apiGet({ action: 'add', ...rec, abono: String(abono), catering: String(catering) });
+    if (!res.ok) {
+      showToast('⚠️ Ese horario ya fue tomado por otro registro', true);
+      await loadData();
+      return;
+    }
+    reservas.push(norm(rec));
+    reservas.sort((a,b) => String(a.fecha).localeCompare(String(b.fecha)));
+    ['f-fecha','f-contacto','f-notas'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-horario').value = '';
+    document.getElementById('f-edad').value = '';
+    document.getElementById('f-abono').checked = false;
+    document.getElementById('f-catering').checked = false;
+    document.getElementById('avail-msg').className = 'avail-box';
+    updateStats(); renderReservas(); renderCalendar(); renderAnnual();
+    showToast('✅ Reserva guardada en Sheets');
+  } catch(e) {
+    showToast('Error al guardar en Sheets', true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Registrar Reserva';
+  }
+}
+
+// ── ELIMINAR ─────────────────────────────────────────────────────────────────
+async function eliminar(id) {
+  if (!confirm('¿Eliminar esta reserva?')) return;
+  try {
+    await apiGet({ action: 'delete', id });
+    reservas = reservas.filter(r => String(r.id) !== String(id));
+    updateStats(); renderReservas(); renderCalendar(); renderAnnual();
+    showToast('Reserva eliminada');
+  } catch(e) { showToast('Error al eliminar', true); }
+}
+
+// ── RENDER TABLA ─────────────────────────────────────────────────────────────
+function renderReservas() {
+  updateStats();
+  const mes    = document.getElementById('fil-mes').value;
+  const hor    = document.getElementById('fil-horario').value;
+  const buscar = document.getElementById('fil-buscar').value.toLowerCase();
+  let arr = reservas.slice();
+  if (mes)    arr = arr.filter(r => String(r.fecha).slice(5,7) === mes);
+  if (hor)    arr = arr.filter(r => r.horario === hor);
+  if (buscar) arr = arr.filter(r => r.contacto.toLowerCase().includes(buscar));
+  const c = document.getElementById('tabla-container');
+  if (!arr.length) { c.innerHTML = '<div class="empty">Sin reservas para los filtros seleccionados</div>'; return; }
+  c.innerHTML = `<table><thead><tr><th>Fecha</th><th>Horario</th><th>Contacto</th><th>Edad</th><th>Extras</th><th>Notas</th><th></th></tr></thead>
+  <tbody>${arr.map(r => `<tr>
+    <td>${fmtDate(String(r.fecha))}</td>
+    <td><span class="badge badge-${r.horario.toLowerCase()}">${r.horario}</span></td>
+    <td>${r.contacto}</td><td>${r.edad} años</td>
+    <td style="white-space:nowrap">
+      ${r.abono    ? '<span class="badge" style="background:#14302a;color:#4ade80;margin-right:4px">💰 Abono</span>' : ''}
+      ${r.catering ? '<span class="badge" style="background:#2a1f0a;color:#fbbf24">🍽️ Catering</span>' : ''}
+      ${!r.abono && !r.catering ? '<span style="color:var(--border)">—</span>' : ''}
+    </td>
+    <td style="max-width:200px;font-size:.82rem;color:var(--muted)">
+      ${r.notas ? `<span title="${r.notas}">${r.notas.length>50 ? r.notas.slice(0,50)+'…' : r.notas}</span>` : '<span style="color:var(--border)">—</span>'}
+    </td>
+    <td><button class="btn btn-danger" onclick="eliminar('${r.id}')">🗑</button></td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+function updateStats() {
+  const now = new Date(), mm = String(now.getMonth()+1).padStart(2,'0'), yy = String(now.getFullYear());
+  document.getElementById('s-total').textContent    = reservas.length;
+  document.getElementById('s-am').textContent       = reservas.filter(r => r.horario==='AM').length;
+  document.getElementById('s-pm').textContent       = reservas.filter(r => r.horario==='PM').length;
+  document.getElementById('s-mes').textContent      = reservas.filter(r => String(r.fecha).slice(0,4)===yy && String(r.fecha).slice(5,7)===mm).length;
+  document.getElementById('s-abono').textContent    = reservas.filter(r => r.abono).length;
+  document.getElementById('s-catering').textContent = reservas.filter(r => r.catering).length;
+}
+
+// ── CALENDARIO ───────────────────────────────────────────────────────────────
+function renderCalendar() {
+  document.getElementById('month-title').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+  const grid  = document.getElementById('cal-grid');
+  const first = new Date(viewYear, viewMonth, 1).getDay();
+  const days  = new Date(viewYear, viewMonth+1, 0).getDate();
+  const prev  = new Date(viewYear, viewMonth, 0).getDate();
+  const today = new Date();
+  grid.innerHTML = DAYS.map(d => `<div class="cal-header">${d}</div>`).join('');
+  for (let i=0; i<first; i++)
+    grid.innerHTML += `<div class="cal-day other-month"><div class="day-num">${prev-first+i+1}</div></div>`;
+  for (let d=1; d<=days; d++) {
+    const ds  = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isT = today.getFullYear()===viewYear && today.getMonth()===viewMonth && today.getDate()===d;
+    const evs = reservas.filter(r => String(r.fecha)===ds);
+    grid.innerHTML += `<div class="cal-day${isT?' today':''}"><div class="day-num">${d}</div>
+      ${evs.map(e => `<div class="cal-event ${e.horario.toLowerCase()}" title="${e.contacto}">${e.horario} · ${e.contacto.split(' ')[0]}</div>`).join('')}
+    </div>`;
+  }
+  const rem = (first+days)%7===0 ? 0 : 7-(first+days)%7;
+  for (let i=1; i<=rem; i++) grid.innerHTML += `<div class="cal-day other-month"><div class="day-num">${i}</div></div>`;
+}
+
+function renderAnnual() {
+  document.getElementById('year-title').textContent = annualYear;
+  const arr = reservas.filter(r => String(r.fecha).startsWith(String(annualYear)));
+  document.getElementById('annual-grid').innerHTML = MONTHS.map((m,i) => {
+    const mm  = String(i+1).padStart(2,'0');
+    const evs = arr.filter(r => String(r.fecha).slice(5,7)===mm);
+    return `<div class="month-card"><h3>🎂 ${m}</h3>
+      ${evs.length ? evs.map(e => `<div class="month-event">
+        <div><div>${e.contacto}</div><div class="date-part">${fmtDate(String(e.fecha))} · ${e.edad} años</div></div>
+        <span class="badge badge-${e.horario.toLowerCase()}">${e.horario}</span>
+      </div>`).join('') : '<div class="no-events">Sin eventos</div>'}
+    </div>`;
+  }).join('');
+}
+
+function changeMonth(d) { viewMonth+=d; if(viewMonth<0){viewMonth=11;viewYear--;} if(viewMonth>11){viewMonth=0;viewYear++;} renderCalendar(); }
+function changeYear(d)  { annualYear+=d; renderAnnual(); }
+
+function fmtDate(s) { if(!s)return''; const[y,m,d]=String(s).slice(0,10).split('-'); return`${d}/${m}/${y}`; }
+
+function showTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('page-'+tab).classList.add('active');
+  if(tab==='reservas') renderReservas();
+  if(tab==='mensual')  renderCalendar();
+  if(tab==='anual')    renderAnnual();
+}
+
+function setSyncState(s, l) {
+  document.getElementById('sync-dot').className = 'sync-dot'+(s==='loading'?' loading':s==='error'?' error':'');
+  document.getElementById('sync-label').textContent = l;
+}
+
+function showToast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show'+(err?' error':'');
+  setTimeout(() => t.className='toast', 3500);
+}
+
+loadData();
+</script>
+</body>
+</html>
